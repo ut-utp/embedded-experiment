@@ -71,11 +71,11 @@ let mut arr_dat: [u32; 256] = [0; 256];
 for i in 0..256{
     arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
 }
-flash_unit.erase_page(0x0001_0000 as usize);
-flash_unit.program_page(0x0001_0000 as usize, &arr_dat);
+flash_unit.erase_page(0x0000_0000 as usize);
+flash_unit.program_page(0x0000_0000 as usize, &arr_dat);
 loop{
          unsafe{
-         for addr in (0x0001_0000 as u32..(0x0001_0000 + 1028 as u32)).step_by(4) {
+         for addr in (0x0002_0000 as u32..(0x0002_0000 + 1028 as u32)).step_by(4) {
              let mut x = addr;
             let mut data = unsafe {read_volatile(x as (*const u32))};
             writeln!(uart, "{}: [{:#x}] =  {:#x}", addr, addr, data);

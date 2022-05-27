@@ -104,7 +104,7 @@ pub trait Read {
     type Error;
 
     fn read <WORD : From <u32>>(&self, addr: usize) -> Result<WORD, Self::Error>;
-    fn read_page(&mut self, address: usize) -> [u32; 32];
+    fn read_page(&mut self, address: usize) -> [u32; 256];
 }
 
 pub trait WriteErase {
@@ -161,6 +161,7 @@ const FLASH_FCRIS_PROGRIS: u32 = 0x00002000;
 
 const FLASH_FCRIS_ERRIS: u32 = 0x00000800;
 
+const FLASH_STORAGE_ADDR_OFFSET: usize = 0x0002_0000; //Second half of flash (capacity 128 K) is for storage (LC-3 address space in this case)
 
 impl <DAT> Flash_Unit <DAT>{
     fn summarize(&self) -> u32 {
@@ -193,8 +194,12 @@ impl <DAT> Read for Flash_Unit <DAT>{
         Ok((x))//Ok((0))
     }
 
-    fn read_page(&mut self, address: usize) -> [u32; 32]{
-        unimplemented!()
+    fn read_page(&mut self, address: usize) -> [u32; 256]{
+        let mut page: [u32; 256] = [0; 256];
+        for i in 0..256 {
+            page[i] = unsafe {read_volatile(((address & !0x3FF) + FLASH_STORAGE_ADDR_OFFSET + i*(4 as usize)) as (*const u32))};
+        }
+        page
     }
 
 }
@@ -262,7 +267,7 @@ impl <DAT> WriteErase for Flash_Unit <DAT>{
 //     while(HWREG(FLASH_FMC) & FLASH_FMC_ERASE)
 //     {
 //     }
-        self.flash.fma.write(|w| unsafe{w.bits(address as u32 & !0x3FF)});
+        self.flash.fma.write(|w| unsafe{w.bits((address + FLASH_STORAGE_ADDR_OFFSET) as u32 & !0x3FF)});
         self.flash.fmc.write(|w| unsafe{w.bits(FLASH_FMC_WRKEY | FLASH_FMC_ERASE)});
 
         while((self.flash.fmc.read().bits() & FLASH_FMC_ERASE) != 0){}
@@ -311,7 +316,7 @@ impl <DAT> WriteErase for Flash_Unit <DAT>{
     //
     // Loop over the words to be programmed.
     //
-    let mut temp_addr = address;
+    let mut temp_addr = address + FLASH_STORAGE_ADDR_OFFSET;
        while words_left > 0{
             //HWREG(FLASH_FMA) = ui32Address & ~(0x7f);
 
