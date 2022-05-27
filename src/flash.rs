@@ -151,10 +151,15 @@ const FLASH_FCMISC_PROGMISC: u32 = 0x00002000;  // PROGVER Masked Interrupt Stat
 const FLASH_FMC2_WRKEY: u32 = 0xA4420000;
 const FLASH_FMC2_WRBUF: u32 = 0x00000001;
 
+const FLASH_FMC_ERASE: u32 = 0x00000002;
+const FLASH_FMC_WRKEY: u32 = 0xA4420000;
+
 const FLASH_FCRIS_ARIS: u32 = 0x00000001;
 const FLASH_FCRIS_VOLTRIS: u32 = 0x00000200;
 const FLASH_FCRIS_INVDRIS: u32 = 0x00000400;
 const FLASH_FCRIS_PROGRIS: u32 = 0x00002000;
+
+const FLASH_FCRIS_ERRIS: u32 = 0x00000800;
 
 
 impl <DAT> Flash_Unit <DAT>{
@@ -193,7 +198,47 @@ impl <DAT> Read for Flash_Unit <DAT>{
     }
 
 }
+// int32_t
+// FlashErase(uint32_t ui32Address)
+// {
+//     //
+//     // Check the arguments.
+//     //
+//     ASSERT(!(ui32Address & (FLASH_ERASE_SIZE - 1)));
 
+//     //
+//     // Clear the flash access and error interrupts.
+//     //
+//     HWREG(FLASH_FCMISC) = (FLASH_FCMISC_AMISC | FLASH_FCMISC_VOLTMISC |
+//                            FLASH_FCMISC_ERMISC);
+
+//     //
+//     // Erase the block.
+//     //
+//     HWREG(FLASH_FMA) = ui32Address;
+//     HWREG(FLASH_FMC) = FLASH_FMC_WRKEY | FLASH_FMC_ERASE;
+
+//     //
+//     // Wait until the block has been erased.
+//     //
+//     while(HWREG(FLASH_FMC) & FLASH_FMC_ERASE)
+//     {
+//     }
+
+//     //
+//     // Return an error if an access violation or erase error occurred.
+//     //
+//     if(HWREG(FLASH_FCRIS) & (FLASH_FCRIS_ARIS | FLASH_FCRIS_VOLTRIS |
+//                              FLASH_FCRIS_ERRIS))
+//     {
+//         return(-1);
+//     }
+
+//     //
+//     // Success.
+//     //
+//     return(0);
+// }
 
 impl <DAT> WriteErase for Flash_Unit <DAT>{
     type Error = u32;
@@ -201,7 +246,52 @@ impl <DAT> WriteErase for Flash_Unit <DAT>{
 
     fn status(&self) -> Result<Self::Status, Self::Error> {Ok((0))}
 
-    fn erase_page(&mut self, address: usize) -> Result<(), Self::Error> {Ok(())}
+    fn erase_page(&mut self, address: usize) -> Result<(), Self::Error> {
+//     HWREG(FLASH_FCMISC) = (FLASH_FCMISC_AMISC | FLASH_FCMISC_VOLTMISC |
+//                            FLASH_FCMISC_ERMISC);
+        self.flash.fcmisc.write(|w| unsafe{w.bits(FLASH_FCMISC_AMISC | FLASH_FCMISC_VOLTMISC | FLASH_FCMISC_INVDMISC | FLASH_FCMISC_PROGMISC)});
+//     //
+//     // Erase the block.
+//     //
+//     HWREG(FLASH_FMA) = ui32Address;
+//     HWREG(FLASH_FMC) = FLASH_FMC_WRKEY | FLASH_FMC_ERASE;
+
+//     //
+//     // Wait until the block has been erased.
+//     //
+//     while(HWREG(FLASH_FMC) & FLASH_FMC_ERASE)
+//     {
+//     }
+        self.flash.fma.write(|w| unsafe{w.bits(address as u32 & !0x3FF)});
+        self.flash.fmc.write(|w| unsafe{w.bits(FLASH_FMC_WRKEY | FLASH_FMC_ERASE)});
+
+        while((self.flash.fmc.read().bits() & FLASH_FMC_ERASE) != 0){}
+
+//     //
+//     // Return an error if an access violation or erase error occurred.
+//     //
+//     if(HWREG(FLASH_FCRIS) & (FLASH_FCRIS_ARIS | FLASH_FCRIS_VOLTRIS |
+//                              FLASH_FCRIS_ERRIS))
+//     {
+//         return(-1);
+//     }
+
+//     //
+//     // Success.
+//     //
+//     return(0);
+        let mut status: Result<(), u32> = Ok(());
+
+        if((self.flash.fcris.read().bits() & (FLASH_FCRIS_ARIS | FLASH_FCRIS_VOLTRIS | FLASH_FCRIS_ERRIS)) != 0){
+             status = Err(1);
+        }
+        else{
+            status = Ok(())
+        }
+
+        status
+
+    }
 
     fn program_word(&mut self, address: usize, value: u32) -> Result<(), Self::Error> {Ok(())}
 
@@ -221,10 +311,11 @@ impl <DAT> WriteErase for Flash_Unit <DAT>{
     //
     // Loop over the words to be programmed.
     //
+    let mut temp_addr = address;
        while words_left > 0{
             //HWREG(FLASH_FMA) = ui32Address & ~(0x7f);
 
-            self.flash.fma.write(|w| unsafe{w.bits(address as u32 & !0x7f)});
+            self.flash.fma.write(|w| unsafe{w.bits(temp_addr as u32 & !0x7f)});
        
            /*while(((ui32Address & 0x7c) || (HWREG(FLASH_FWBVAL) == 0)) &&
                   (ui32Count != 0))
@@ -236,10 +327,11 @@ impl <DAT> WriteErase for Flash_Unit <DAT>{
                 ui32Address += 4;
                 ui32Count -= 4;
             }*/
-           while ((words_left != 0) && ((self.flash.fwbval.read().bits() == 0) || (address & 0x7c > 0))){
-                self.flash.fwbn[ctr].write(|w| unsafe{w.bits(data[ctr])});
+           while ((words_left != 0) && ((self.flash.fwbval.read().bits() == 0) || (temp_addr & 0x7c > 0))){
+                self.flash.fwbn[(temp_addr & 0x7c) >> 2].write(|w| unsafe{w.bits(data[ctr])});
                 ctr += 1;
                 words_left -= 1;
+                temp_addr += 4;
 
            }
             //

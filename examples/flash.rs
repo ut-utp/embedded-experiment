@@ -67,16 +67,17 @@ fn main() -> ! {
 //    }
 //
 let mut flash_unit = Flash_Unit::<u32>::new(p.FLASH_CTRL);
-let mut arr_dat: [u32; 32] = [0; 32];
-for i in 0..32{
-    arr_dat[i] = i as u32;
+let mut arr_dat: [u32; 256] = [0; 256];
+for i in 0..256{
+    arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
 }
+flash_unit.erase_page(0x0001_0000 as usize);
 flash_unit.program_page(0x0001_0000 as usize, &arr_dat);
 loop{
          unsafe{
-         for addr in (0x0001_0000 as u32..(0x0001_0000 + 50 as u32)) {
+         for addr in (0x0001_0000 as u32..(0x0001_0000 + 1028 as u32)).step_by(4) {
              let mut x = addr;
-            let mut data = unsafe {read_volatile(x as (*const u8))};
+            let mut data = unsafe {read_volatile(x as (*const u32))};
             writeln!(uart, "{}: [{:#x}] =  {:#x}", addr, addr, data);
         }
    }

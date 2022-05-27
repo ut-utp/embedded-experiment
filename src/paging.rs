@@ -40,10 +40,10 @@ use core::marker::PhantomData;
 //     fn unlock(&mut self);
 // }
 
-const RAM_PAGE_SIZE: usize = 32; 
-//Just having 128 byte pages since that's what the TM4C flash page size is Should probably find a way to do this generic
-const NUM_RAM_PAGES: usize = 50;
-//Support for storing 50 pages which is around 6K and should easily fit in TM4C 32K RAM and a decent amount of LC-3 address space. 
+const RAM_PAGE_SIZE: usize = 256; 
+//Just having 1024 byte pages since that's what the TM4C flash block size is. Should probably find a way to do this generic
+const NUM_RAM_PAGES: usize = 8;
+//Support for storing 8 pages which is 8K and should easily fit in TM4C 32K RAM and a decent amount of LC-3 address space. 
 //Again specific size chosen with TM4C and LC3 in mind. Should try to make it generic
 
 //Assumes 0 offset page index to address i.e address 0 is index 0, address 32*4 is index 1 and so on
@@ -74,7 +74,7 @@ impl <'a, T:Read + WriteErase, DAT> RAM_Pages <'a, T, DAT>{
         let mut data_buffer_index: usize = 0;
 
         for i in self.indices {
-            if(self.indices[i as usize]*128 == ((address as u32) & !0x7f)){
+            if(self.indices[i as usize]*1024 == ((address as u32) & !0x7f)){
                 page_present = true;
                 data_buffer_index = i as usize;
             }
@@ -108,8 +108,8 @@ impl <'a, T:Read + WriteErase, DAT> RAM_Pages <'a, T, DAT>{
             }
         }
         if(valid_page_present && self.dirty[evicted_page_index]){
-            self.flash_controller.erase_page(evicted_page_index*128);
-            self.flash_controller.program_page(evicted_page_index*128, &self.data[evicted_page_index]); 
+            self.flash_controller.erase_page(evicted_page_index*1024);
+            self.flash_controller.program_page(evicted_page_index*1024, &self.data[evicted_page_index]); 
         }
 
         self.valid[evicted_page_index] = false;
@@ -137,7 +137,7 @@ impl <'a, T:Read + WriteErase, DAT> RAM_Pages <'a, T, DAT>{
 impl <'a, T:Read + WriteErase, DAT> RAM_backed_flash for RAM_Pages <'a, T, DAT>{
     fn read_page(&mut self, address: usize) -> [u32; RAM_PAGE_SIZE] {
 
-        let mut page_data: [u32; RAM_PAGE_SIZE] = [0; 32];
+        let mut page_data: [u32; RAM_PAGE_SIZE] = [0; 256];
         if(self.page_present_on_RAM(address).0){
             page_data = self.data[self.page_present_on_RAM(address).1];
         }
