@@ -1,0 +1,44 @@
+[package]
+name = "lc3-tm4c"
+version = "0.1.0"
+authors = ["UT UTP <ut.utp.group@gmail.com>"]
+edition = "2018"
+
+# TODO: CI
+# TODO: README
+# TODO: CHANGELOG
+# TODO: all the other keys
+# TODO: lints and attributes for this crate
+# (this is very much just a proof of concept! not a prototype!!)
+# We'll do all these things for the embedded-hal based impl.
+
+
+[dependencies]
+cortex-m-rt = {version = "0.6.10", features = ["device"]}
+cortex-m-semihosting = "0.3.3"
+panic-halt = "0.2.0"
+
+# TODO: All of the below should use crates.io published version instead of git repos.
+lc3-baseline-sim = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
+lc3-isa = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
+lc3-traits = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"  }
+lc3-device-support = {git = "https://github.com/ut-utp/prototype.git", version="0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"}
+
+#lc3-baseline-sim = { path = "../core/baseline-sim", version = "0.1.0", default-features = false, features = ["no_std"]}
+#lc3-isa = { path = "../core/isa", version = "0.1.0", default-features = false, features = ["no_std"] }
+#lc3-traits = { path = "../core/traits", version = "0.1.0", default-features = false, features = ["no_std"]  }
+#lc3-device-support = {path = "../core/device-support", version="0.1.0", default-features = false, features = ["no_std"]}
+
+tm4c123x-hal = { git = "https://github.com/ut-utp/tm4c-hal", version= "0.10.0" , features=["rt"], rev="f4f7487202c7b777c6d2092cd6504f8d4c638ede"}
+embedded-hal = "0.2.3"
+tm4c123x     = "0.9.0"
+cortex-m-rt-macros = "0.1.5"
+cortex-m = "0.6.2"
+nb = "0.1"
+bbqueue = "0.5.1"
+flash-embedded-hal = "0.1.2"
+
+[profile.release]
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
