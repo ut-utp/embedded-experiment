@@ -47,7 +47,7 @@ const RAM_PAGE_WORDS: usize = 256;
 const RAM_PAGE_SIZE: usize = WORD_SIZE*RAM_PAGE_WORDS;
 //Just having 1024 byte pages since that's what the TM4C flash block size is. Should probably find a way to do this generic
 
-const NUM_RAM_PAGES: usize = 8;
+const NUM_RAM_PAGES: usize = 2;
 //Support for storing 8 pages which is 8K and should easily fit in TM4C 32K RAM and a decent amount of LC-3 address space. 
 //Again specific size chosen with TM4C and LC3 in mind. TODO: Consider using const generics
 
@@ -119,8 +119,8 @@ impl <T:Read + WriteErase, DAT> RAM_Pages <T, DAT>{
             }
         }
         if(valid_page_present && self.dirty[evicted_page_index]){
-            self.flash_controller.erase_page(evicted_page_index*RAM_PAGE_SIZE);
-            self.flash_controller.program_page(evicted_page_index*RAM_PAGE_SIZE, &self.data[evicted_page_index]); 
+            self.flash_controller.erase_page((self.indices[evicted_page_index] as usize)*RAM_PAGE_SIZE);
+            self.flash_controller.program_page((self.indices[evicted_page_index] as usize)*RAM_PAGE_SIZE, &self.data[evicted_page_index]); 
         }
 
         self.valid[evicted_page_index] = false;

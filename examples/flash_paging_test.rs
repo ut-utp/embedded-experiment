@@ -73,8 +73,12 @@ let mut arr_dat: [u32; 256] = [0; 256];
 for i in 0..256{
     arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
 }
+RAM_paging_unit.read_page(0x0000_0000 as usize);
+
 RAM_paging_unit.read_page(0x0000_0400 as usize);
-RAM_paging_unit.write_page(0x0000_0400 as usize, [0; 256]);
+RAM_paging_unit.write_page(0x0000_0400 as usize, [1; 256]);
+RAM_paging_unit.read_page(0x0000_0800 as usize);
+//RAM_paging_unit.write_page(0x0000_0000 as usize, [0; 256]);
 loop{
         let mut arr_buffer: [u32; 256] = RAM_paging_unit.read_page(0x400);
          unsafe{
