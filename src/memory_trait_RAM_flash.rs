@@ -101,3 +101,42 @@ impl <T: RAM_backed_flash, U: Read + WriteErase> Memory for RAM_backed_flash_mem
     fn get_program_metadata(&self) -> ProgramMetadata { self.program_data.clone() }
     fn set_program_metadata(&mut self, metadata: ProgramMetadata) { self.program_data = metadata }
 }
+
+
+
+
+#[deny(unconditional_recursion)]
+impl <T: RAM_backed_flash, U: Read + WriteErase> Index<Addr> for &'_ mut RAM_backed_flash_memory <T, U> {
+    type Output = Word;
+
+    fn index(&self, addr: Addr) -> &Self::Output {
+        (&**self).index(addr)
+    }
+}
+
+#[deny(unconditional_recursion)]
+impl <T: RAM_backed_flash, U: Read + WriteErase> IndexMut<Addr> for &'_ mut RAM_backed_flash_memory <T, U> {
+    fn index_mut(&mut self, addr: Addr) -> &mut Self::Output {
+        (&mut **self).index_mut(addr)
+    }
+}
+
+#[deny(unconditional_recursion)]
+impl <T: RAM_backed_flash, U: Read + WriteErase> Memory for &'_ mut RAM_backed_flash_memory <T, U> {
+    fn read_word(&self, addr: Addr) -> Word { 
+        (&**self).read_word(addr)
+    }
+
+    fn write_word(&mut self, addr: Addr, word: Word) {
+        (&mut **self).write_word(addr, word)
+    }
+
+    fn commit_page(&mut self, page_idx: PageIndex, page: &[Word; PAGE_SIZE_IN_WORDS as usize]) {
+        (&mut **self).commit_page(page_idx, page)
+    }
+
+    fn reset(&mut self) { (&mut **self).reset() }
+
+    fn get_program_metadata(&self) -> ProgramMetadata { (&**self).get_program_metadata() }
+    fn set_program_metadata(&mut self, metadata: ProgramMetadata) { (&mut **self).set_program_metadata(metadata) }
+}
