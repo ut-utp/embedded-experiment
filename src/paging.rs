@@ -71,12 +71,21 @@ pub trait RAM_backed_flash {
 }
 
 impl <T:Read + WriteErase, DAT> RAM_Pages <T, DAT>{
+    pub fn new(flash_controller_init: T) -> RAM_Pages<T, DAT> {
+        RAM_Pages { addr: 0, data: [[0; RAM_PAGE_WORDS]; NUM_RAM_PAGES],
+                             valid: [false; NUM_RAM_PAGES],
+                             dirty: [false; NUM_RAM_PAGES],
+                             indices: [0; NUM_RAM_PAGES],
+                             flash_controller: flash_controller_init,
+                            phantom: PhantomData 
+                    }
+    }
     fn page_present_on_RAM(&mut self, address: usize) -> (bool, usize){
         let mut page_present: bool = false;
         let mut data_buffer_index: usize = 0;
 
-        for i in self.indices {
-            if(self.indices[i as usize]*(RAM_PAGE_SIZE as u32) == ((address as u32) & !0x7f)){
+        for i in 0..NUM_RAM_PAGES {
+            if((self.indices[i as usize]*(RAM_PAGE_SIZE as u32) == ((address as u32) & !0x3FF)) && (self.valid[i as usize])){
                 page_present = true;
                 data_buffer_index = i as usize;
             }
@@ -88,7 +97,7 @@ impl <T:Read + WriteErase, DAT> RAM_Pages <T, DAT>{
         let mut free_page_present: bool = false;
         let mut free_page_index: usize = 0;
 
-        for i in 0..RAM_PAGE_WORDS {
+        for i in 0..NUM_RAM_PAGES {
             if(!self.valid[i as usize]){
                 free_page_present = true;
                 free_page_index = i;
@@ -102,7 +111,7 @@ impl <T:Read + WriteErase, DAT> RAM_Pages <T, DAT>{
         let mut evicted_page_index: usize = 0;
         let mut valid_page_present: bool = false;
 
-        for i in 0..RAM_PAGE_WORDS {
+        for i in 0..NUM_RAM_PAGES {
             if(self.valid[i as usize]){
                 evicted_page_index = i;
                 valid_page_present = true;
@@ -129,7 +138,7 @@ impl <T:Read + WriteErase, DAT> RAM_Pages <T, DAT>{
             load_page_idx = free_page.1;
         }
         self.data[load_page_idx] = self.flash_controller.read_page(address);
-        self.indices[load_page_idx] = (address as u32) & !0x7F;
+        self.indices[load_page_idx] = ((address as u32) & !0x3FF) >> 10;
         self.dirty[load_page_idx] = false;
         self.valid[load_page_idx] = true;
         self.data[load_page_idx]
@@ -140,8 +149,9 @@ impl <T:Read + WriteErase, DAT> RAM_backed_flash for RAM_Pages <T, DAT>{
     fn read_page(&mut self, address: usize) -> [u32; RAM_PAGE_WORDS] {
 
         let mut page_data: [u32; RAM_PAGE_WORDS] = [0; RAM_PAGE_WORDS];
-        if(self.page_present_on_RAM(address).0){
-            page_data = self.data[self.page_present_on_RAM(address).1];
+        let page_availibility = self.page_present_on_RAM(address);
+        if(page_availibility.0){
+            page_data = self.data[page_availibility.1];
         }
         else{
             page_data = self.load_page(address);
@@ -150,22 +160,24 @@ impl <T:Read + WriteErase, DAT> RAM_backed_flash for RAM_Pages <T, DAT>{
     }
     fn write_page(&mut self, address: usize, data: [u32; RAM_PAGE_WORDS]){
 
-        if(self.page_present_on_RAM(address).0){
-            self.data[self.page_present_on_RAM(address).1 as usize] = data;
+        let mut page_availibility = self.page_present_on_RAM(address);
+        if(page_availibility.0){
+            self.data[page_availibility.1 as usize] = data;
         }
         else{
             self.load_page(address);
-            self.data[self.page_present_on_RAM(address).1 as usize] = data;
+            page_availibility = self.page_present_on_RAM(address);
+            self.data[page_availibility.1 as usize] = data;
         }
-        self.dirty[self.page_present_on_RAM(address).1 as usize] = true;
+        self.dirty[page_availibility.1 as usize] = true;
     }
     fn read_word(&mut self, address: usize) -> u32{
         let mut page_word: u32 = 0;
         if(self.page_present_on_RAM(address).0){
-            page_word = self.data[self.page_present_on_RAM(address).1][(address & 0x7E) >> 1];
+            page_word = self.data[self.page_present_on_RAM(address).1][(address & 0x3FC) >> 2];
         }
         else{
-            page_word = self.load_page(address)[(address & 0x7E) >> 1];
+            page_word = self.load_page(address)[(address & 0x3FC) >> 2];
         }
         // self.last_word_read[0] = ((page_word >> 16) & 0xFFFF) as u16;
         // self.last_word_read[1] = (page_word & 0xFFFF) as u16;
@@ -174,11 +186,11 @@ impl <T:Read + WriteErase, DAT> RAM_backed_flash for RAM_Pages <T, DAT>{
     }
     fn write_word(&mut self, address: usize, data: u32){
         if(self.page_present_on_RAM(address).0){
-            self.data[self.page_present_on_RAM(address).1 as usize][(address & 0x7E) >> 1] = data;
+            self.data[self.page_present_on_RAM(address).1 as usize][(address & 0x3FC) >> 2] = data;
         }
         else{
             self.load_page(address);
-            self.data[self.page_present_on_RAM(address).1 as usize][(address & 0x7E) >> 1] = data;
+            self.data[self.page_present_on_RAM(address).1 as usize][(address & 0x3FC) >> 2] = data;
         }
         self.dirty[self.page_present_on_RAM(address).1 as usize] = true;        
     }

@@ -11,6 +11,7 @@ use hal::prelude::*;
 use core::ptr::read_volatile;
 use core::fmt::Write;
 use lc3_tm4c::flash::*;
+use lc3_tm4c::paging::*;
 
 static io: i32 = 4;
 
@@ -67,14 +68,15 @@ fn main() -> ! {
 //    }
 //
 let mut flash_unit = Flash_Unit::<u32>::new(p.FLASH_CTRL);
+let mut RAM_paging_unit = RAM_Pages::<Flash_Unit<u32>, u32>::new(flash_unit);
 let mut arr_dat: [u32; 256] = [0; 256];
 for i in 0..256{
     arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
 }
-flash_unit.erase_page(0x0000_0000 as usize);
-flash_unit.program_page(0x0000_0000 as usize, &arr_dat);
+RAM_paging_unit.read_page(0x0000_0400 as usize);
+RAM_paging_unit.write_page(0x0000_0400 as usize, [0; 256]);
 loop{
-        let mut arr_buffer: [u32; 256] = flash_unit.read_page(0);
+        let mut arr_buffer: [u32; 256] = RAM_paging_unit.read_page(0x400);
          unsafe{
          for i in 0..256 {
             let addr = 0 + (i*4);
