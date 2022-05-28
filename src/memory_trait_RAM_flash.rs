@@ -18,6 +18,16 @@ pub struct RAM_backed_flash_memory <T: RAM_backed_flash, U: Read + WriteErase>{
 	phantom: PhantomData<U>,
 }
 
+impl <T: RAM_backed_flash, U: Read + WriteErase> RAM_backed_flash_memory<T, U>{
+    pub fn new(RAM_flash_controller_init: T) -> RAM_backed_flash_memory<T, U> {
+        RAM_backed_flash_memory { 
+                    program_data: ProgramMetadata::empty(),
+                    RAM_backed_flash_controller: RefCell::new(RAM_flash_controller_init),
+                    phantom: PhantomData 
+        }
+    }
+}
+
 impl <T: RAM_backed_flash, U: Read + WriteErase> Index<Addr> for RAM_backed_flash_memory <T, U>{
     type Output = Word;
 
@@ -64,7 +74,7 @@ impl <T: RAM_backed_flash, U: Read + WriteErase> Memory for RAM_backed_flash_mem
             desired_dword = ((word as u32) << 16) + first_word as u32;
         }
         else{
-            desired_dword = (dword & !0xFFFF) + first_word as u32;
+            desired_dword = (dword & !0xFFFF) + word as u32;
         }
         ctrl_inst.write_word((addr as usize)*2 & (!0x3), desired_dword);
     }

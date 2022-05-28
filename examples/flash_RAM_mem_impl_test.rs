@@ -11,7 +11,8 @@ use hal::prelude::*;
 use core::ptr::read_volatile;
 use core::fmt::Write;
 use lc3_tm4c::flash::*;
-use lc3_tm4c::paging::*;
+use lc3_tm4c::{paging::*, memory_trait_RAM_flash::*};
+use lc3_traits::memory::*;
 
 static io: i32 = 4;
 
@@ -69,19 +70,23 @@ fn main() -> ! {
 //
 let mut flash_unit = Flash_Unit::<u32>::new(p.FLASH_CTRL);
 let mut RAM_paging_unit = RAM_Pages::<Flash_Unit<u32>, u32>::new(flash_unit);
+let mut RAM_backed_flash_memory_unit = RAM_backed_flash_memory::<RAM_Pages<Flash_Unit<u32>, u32>, Flash_Unit<u32>>::new(RAM_paging_unit);
 let mut arr_dat: [u32; 256] = [0; 256];
 for i in 0..256{
     arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
 }
-RAM_paging_unit.read_page(0x0000_0000 as usize);
+let word0 = RAM_backed_flash_memory_unit.read_word(0x0000 as u16);
 
-RAM_paging_unit.read_page(0x0000_0400 as usize);
-RAM_paging_unit.write_page(0x0000_0400 as usize, [1; 256]);
-RAM_paging_unit.read_page(0x0000_0800 as usize);
+let temp_buffer: [u16; 256] = [14; 256];
+let word1 = RAM_backed_flash_memory_unit.read_word(0x0400 as u16);
+RAM_backed_flash_memory_unit.write_word(0x0400 as u16, 48);
+RAM_backed_flash_memory_unit.read_word(0x0400 as u16);
 //RAM_paging_unit.write_page(0x0000_0000 as usize, [0; 256]);
-RAM_paging_unit.write_word(0x400, 2);
+RAM_backed_flash_memory_unit.write_word(0x800, 24);
+RAM_backed_flash_memory_unit.write_word(0x801, 26);
+RAM_backed_flash_memory_unit.commit_page(7, &temp_buffer);
 loop{
-        let mut arr_buffer = RAM_paging_unit.read_word(0x400);
+        let mut arr_buffer = RAM_backed_flash_memory_unit.read_word(0x7ff as u16);
          unsafe{
          for i in 0..256 {
             let addr = 0 + (i*4);
