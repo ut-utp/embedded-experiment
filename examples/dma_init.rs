@@ -5,7 +5,6 @@ extern crate panic_halt;
 extern crate tm4c123x_hal as hal;
 use cortex_m_rt::entry;
 use hal::prelude::*;
-use lc3_tm4c::peripherals_generic::dma;
 use bbqueue::{BBBuffer, GrantR, GrantW, ConstBBBuffer, Consumer, Producer, consts::*};
 use tm4c123x::generic::Reg;
 use core::fmt::Write;

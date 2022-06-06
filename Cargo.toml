@@ -19,10 +19,14 @@ cortex-m-semihosting = "0.3.3"
 panic-halt = "0.2.0"
 
 # TODO: All of the below should use crates.io published version instead of git repos.
-lc3-baseline-sim = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
-lc3-isa = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
-lc3-traits = { git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"  }
-lc3-device-support = {git = "https://github.com/ut-utp/prototype.git", version="0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"}
+lc3-baseline-sim = {path = "../core/baseline-sim", default-features = false, features = ["no_std"]}
+#{ git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
+lc3-isa = {path = "../core/isa", default-features = false, features = ["no_std"]}
+#{ git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support" }
+lc3-traits = {path = "../core/traits", default-features = false, features = ["no_std"]}
+#{ git = "https://github.com/ut-utp/prototype.git", version = "0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"  }
+lc3-device-support = {path = "../core/device-support", version="0.1.0", default-features = false, features = ["no_std"]}
+#{git = "https://github.com/ut-utp/prototype.git", version="0.1.0", default-features = false, features = ["no_std"], branch="dma-uart-device-support"}
 
 #lc3-baseline-sim = { path = "../core/baseline-sim", version = "0.1.0", default-features = false, features = ["no_std"]}
 #lc3-isa = { path = "../core/isa", version = "0.1.0", default-features = false, features = ["no_std"] }
@@ -42,3 +46,4 @@ flash-embedded-hal = "0.1.2"
 codegen-units = 1 # better optimizations
 debug = true # symbols are nice and they don't increase the size on Flash
 lto = true # better optimizations
+opt-level = 1

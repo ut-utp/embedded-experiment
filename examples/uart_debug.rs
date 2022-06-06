@@ -56,8 +56,9 @@ fn main() -> ! {
     // exit QEMU 
     // NOTE do not run this on hardware; it can corrupt OpenOCD state
     let mut counter = 0u32;
+    writeln!(uart, "Hello, world!").unwrap();
     loop {
-        writeln!(uart, "Hello, world! counter={}", counter).unwrap();
+        //writeln!(uart, "Hello, world!").unwrap();
         counter = counter.wrapping_add(1);
     }
 }

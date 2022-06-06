@@ -71,27 +71,19 @@ use lc3_device_support::{
     },
     util::Fifo,
 };
+use lc3_traits::control::rpc::Transport;
 
 use lc3_tm4c::flash::*;
 use lc3_tm4c::{paging::*, memory_trait_RAM_flash::*};
-
-use lc3_tm4c::dma_impl::*;
-use lc3_device_support::rpc::transport::uart_dma::*;
+use core::fmt::Write;
 
 static FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
 
 #[entry]
 fn main() -> ! {
     let p = hal::Peripherals::take().unwrap();
-    let mut sys_control = p.SYSCTL;
-    sys_control.rcgcdma.write(|w| unsafe{w.bits(1)});
-    cortex_m::asm::delay(100000);
-    let mut x = 0;
-    for pat in 0..1000 {
-        x = 2*pat;
-        x = x+1;
-    }
-    let mut sc = sys_control.constrain();
+
+    let mut sc = p.SYSCTL.constrain();
     sc.clock_setup.oscillator = hal::sysctl::Oscillator::Main(
         hal::sysctl::CrystalFrequency::_16mhz,
         hal::sysctl::SystemClock::UsePll(hal::sysctl::PllOutputFrequency::_80_00mhz),
@@ -116,7 +108,7 @@ fn main() -> ! {
         };
 
     // Activate UART
-    let uart = hal::serial::Serial::uart0(
+    let mut uart = hal::serial::Serial::uart0(
         u0,
         porta
             .pa1
@@ -141,39 +133,47 @@ fn main() -> ! {
     let mut RAM_paging_unit = RAM_Pages::<Flash_Unit<u32>, u32>::new(flash_unit);
     let mut RAM_backed_flash_memory_unit = RAM_backed_flash_memory::<RAM_Pages<Flash_Unit<u32>, u32>, Flash_Unit<u32>>::new(RAM_paging_unit);
 
-    let mut interp: Interpreter<'static, _, PeripheralsStub<'_>> = Interpreter::new(
-       // &mut memory,
-        &mut RAM_backed_flash_memory_unit, 
-        peripheral_set,
-        OwnedOrRef::Ref(&FLAGS),
-        [x; 8],
-        0x200,
-        MachineState::Running,
+    // let mut interp: Interpreter<'static, _, PeripheralsStub<'_>> = Interpreter::new(
+    //    // &mut memory,
+    //     &mut RAM_backed_flash_memory_unit, 
+    //     peripheral_set,
+    //     OwnedOrRef::Ref(&FLAGS),
+    //     [0; 8],
+    //     0x200,
+    //     MachineState::Running,
 
-    );
+    // );
 
-    let mut sim = Simulator::new_with_state(interp, &state);
+//    let mut sim = Simulator::new_with_state(interp, &state);
 
     let func: &dyn Fn() -> Cobs<Fifo<u8>> = &|| Cobs::try_new(Fifo::new()).unwrap();
     let enc = PostcardEncode::<ResponseMessage, _, _>::new(func);
     let dec = PostcardDecode::<RequestMessage, Cobs<Fifo<u8>>>::new();
 
-    let (mut tx, mut rx) = uart.split();
-    let mut dma = p.UDMA;
-    let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
-    let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
 
-    let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
-        enc,
-        dec,
-        uart_dma_transport
-    );
+    //writeln!(uart, "Hello, world!").unwrap();
+    let (mut tx, mut rx) = uart.split();
 
     // let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
     //     enc,
     //     dec,
     //     UartTransport::new(rx, tx),
     // );
+    let mut uart_transport = UartTransport::new(rx, tx);
 
-    loop { device.step(&mut sim); }
+
+    loop { //device.step(&mut sim);
+            let result = uart_transport.get();
+            match result{
+             Ok(fifo) => {
+                 uart_transport.send(fifo);
+             }
+             _ => {}
+            }
+      //  let mut fifo = Fifo::new();
+       // fifo.push(65);
+
+         //  uart_transport.send(fifo);
+
+     }
 }

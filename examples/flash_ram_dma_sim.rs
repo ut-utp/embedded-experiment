@@ -1,3 +1,6 @@
+
+
+
 //! Impl of the UTP platform for the TI TM4C.
 //!
 //! TODO!
@@ -85,10 +88,9 @@ fn main() -> ! {
     let p = hal::Peripherals::take().unwrap();
     let mut sys_control = p.SYSCTL;
     sys_control.rcgcdma.write(|w| unsafe{w.bits(1)});
-    cortex_m::asm::delay(100000);
-    let mut x = 0;
+    cortex_m::asm::delay(1000);
     for pat in 0..1000 {
-        x = 2*pat;
+        let mut x = 2*i;
         x = x+1;
     }
     let mut sc = sys_control.constrain();
@@ -146,7 +148,7 @@ fn main() -> ! {
         &mut RAM_backed_flash_memory_unit, 
         peripheral_set,
         OwnedOrRef::Ref(&FLAGS),
-        [x; 8],
+        [0; 8],
         0x200,
         MachineState::Running,
 
@@ -159,21 +161,28 @@ fn main() -> ! {
     let dec = PostcardDecode::<RequestMessage, Cobs<Fifo<u8>>>::new();
 
     let (mut tx, mut rx) = uart.split();
-    let mut dma = p.UDMA;
-    let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
-    let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
-
-    let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
-        enc,
-        dec,
-        uart_dma_transport
-    );
 
     // let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
     //     enc,
     //     dec,
     //     UartTransport::new(rx, tx),
     // );
+
+
+    let mut dma = p.UDMA;
+    let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
+   // let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
+
+    // let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
+    //     enc,
+    //     dec,
+    //     uart_dma_transport
+    // );
+    let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
+        enc,
+        dec,
+        UartTransport::new(rx, tx),
+    );
 
     loop { device.step(&mut sim); }
 }
