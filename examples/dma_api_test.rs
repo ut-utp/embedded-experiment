@@ -20,6 +20,7 @@ use tm4c123x::NVIC as nvic;
 fn main() -> ! {
 
 		let buf: [u32; 1024] = [0; 1024];
+		let send_buf: [u32; 1024] = [65 + (10<<8) + (66 << 16) + (10 << 24); 1024];
 
  	    let p = hal::Peripherals::take().unwrap();
  	    let mut sys_control = p.SYSCTL;
@@ -31,7 +32,7 @@ fn main() -> ! {
 	        hal::sysctl::CrystalFrequency::_16mhz,
 	        hal::sysctl::SystemClock::UsePll(hal::sysctl::PllOutputFrequency::_80_00mhz),
 	    );
- 	    let mut dma = p.UDMA;
+ 	    //let mut dma = p.UDMA;
 
 	    let clocks = sc.clock_setup.freeze();
 	    let mut porta = p.GPIO_PORTA.split(&sc.power_control);
@@ -46,29 +47,80 @@ fn main() -> ! {
 	            .into_af_push_pull::<hal::gpio::AF1>(&mut porta.control),
 	        (),
 	        (),
-	        115200_u32.bps(),
+	        1_500_000_u32.bps(),
 	        hal::serial::NewlineMode::SwapLFtoCRLF,
 	        &clocks,
 	        &sc.power_control,
 	    );
 
-		let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
-		dma_unit.dma_device_init();
-		dma_unit.dma_set_destination_address(&buf as *const u32 as usize);
-		dma_unit.dma_set_transfer_length(1024);
+	    let mut dma_tx = p.UDMA;
+	    let mut dma_tx_unit = tm4c_uart_dma_ctrl::new(dma_tx);
 
-		dma_unit.dma_start();
+	    let p = unsafe{hal::Peripherals::steal()}; //need to steal to create a separate TX/RX dma channel inst otherwise would result in dounle mut pointers to dma_unit below.
+	                                                        //TODO: Consider having all channels as part of a common type?
+	    let mut dma_rx = p.UDMA;
+	    let mut dma_rx_unit = tm4c_uart_dma_ctrl::new(dma_rx);
 
-		loop{
-    	 unsafe{
-         for addr in (&buf as *const u32 as u32..(&buf as *const u32 as u32 + (50 as u32))) {
-             let mut x = addr;
-         	 let mut data = unsafe {read_volatile(x as (*const u8))};
-         	 let mut bytes_transferred = dma_unit.dma_num_bytes_transferred();
-         	// writeln!(uart, "{}: [{:#x}] =  {:#x}", addr, addr, data);
-         	writeln!(uart, "{}: ", bytes_transferred);
-           }
+	    
+	    let mut dma_tx_channel =  tm4c_uart_tx_channel::new(&mut dma_tx_unit);
+	    let mut dma_rx_channel = tm4c_uart_rx_channel::new(&mut dma_rx_unit);
+
+	    //let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_tx_channel, dma_rx_channel);
+
+	    dma_tx_channel.dma_device_init();
+		dma_rx_channel.dma_device_init();
+		
+
+		dma_rx_channel.dma_set_destination_address(&buf as *const u32 as usize);
+		// dma_tx_channel.dma_set_source_address(&send_buf as *const u32 as usize);
+		dma_rx_channel.dma_set_transfer_length(40);
+		// //dma_tx_channel.dma_set_source_address(&send_buf as *const u32 as usize);
+		// dma_tx_channel.dma_set_transfer_length(40);
+
+		dma_tx_channel.dma_start();
+
+		 while dma_rx_channel.dma_in_progress() {
+			let bytes = dma_rx_channel.dma_num_bytes_transferred();
+			if bytes > 0 {
+				//dma_tx_channel.dma_device_init();
+				//dma_unit.dma_set_destination_address(&buf as *const u32 as usize);
+				 dma_tx_channel.dma_set_source_address(&buf as *const u32 as usize);
+				 dma_tx_channel.dma_set_transfer_length(bytes);
+
+				 dma_tx_channel.dma_start();
+				 while dma_tx_channel.dma_in_progress() {}
+				let transfer_complete = 0;
+			}
+
 		}
+		
+			//dma_tx_channel.dma_device_init();
+		loop{
+			let zero = buf[0];
+			let one = buf[1];
+			let two = buf[2];
+			let three = buf[3];
+			let four = buf[4];
+
+
+			
+			//dma_unit.dma_set_destination_address(&buf as *const u32 as usize);
+			//dma_tx_channel.dma_device_init();
+			// dma_tx_channel.dma_set_source_address(&send_buf as *const u32 as usize);
+			// dma_tx_channel.dma_set_transfer_length(40);
+
+			// dma_tx_channel.dma_start();
+			// while dma_tx_channel.dma_in_progress() {}
+			//dma_tx_channel.dma_stop();
+  //   	 unsafe{
+  //        for addr in (&buf as *const u32 as u32..(&buf as *const u32 as u32 + (50 as u32))) {
+  //            let mut x = addr;
+  //        	 let mut data = unsafe {read_volatile(x as (*const u8))};
+  //        	 let mut bytes_transferred = dma_unit.dma_num_bytes_transferred();
+  //        	// writeln!(uart, "{}: [{:#x}] =  {:#x}", addr, addr, data);
+  //        	writeln!(uart, "{}: ", bytes_transferred);
+  //          }
+		// }
 	}
 
 }

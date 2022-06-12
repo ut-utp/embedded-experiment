@@ -58,7 +58,7 @@ fn main() -> ! {
 	        hal::sysctl::CrystalFrequency::_16mhz,
 	        hal::sysctl::SystemClock::UsePll(hal::sysctl::PllOutputFrequency::_80_00mhz),
 	    );
- 	    let mut dma = p.UDMA;
+ 	    //let mut dma = p.UDMA;
 
 	    let clocks = sc.clock_setup.freeze();
 	    let mut porta = p.GPIO_PORTA.split(&sc.power_control);
@@ -85,9 +85,22 @@ fn main() -> ! {
 	    let enc = PostcardEncode::<ResponseMessage, _, _>::new(func);
 	    let dec = PostcardDecode::<RequestMessage, Cobs<Fifo<u8>>>::new();
 
-		let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
+	    let mut dma_tx = p.UDMA;
+	    let mut dma_tx_unit = tm4c_uart_dma_ctrl::new(dma_tx);
 
-		let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
+	    let p = unsafe{hal::Peripherals::steal()}; //need to steal to create a separate TX/RX dma channel inst otherwise would result in dounle mut pointers to dma_unit below.
+	                                                        //TODO: Consider having all channels as part of a common type?
+	    let mut dma_rx = p.UDMA;
+	    let mut dma_rx_unit = tm4c_uart_dma_ctrl::new(dma_rx);
+
+	    
+	    let mut dma_tx_channel =  tm4c_uart_tx_channel::new(&mut dma_tx_unit);
+	    let mut dma_rx_channel = tm4c_uart_rx_channel::new(&mut dma_rx_unit);
+
+	    //dma_tx_channel.dma_device_init();
+	    //dma_rx_channel.dma_device_init();  //TODO WHY does initilializing here strangely crash the program via panic halt when returning dma_num_bytes_transferred in get function
+
+	    let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_tx_channel, dma_rx_channel);
 
 
 		loop{
@@ -104,13 +117,39 @@ fn main() -> ! {
 	        //     }
 	            
 	        // }
-	        let mut res = uart_dma_transport.get();
+	         let mut res = uart_dma_transport.get();
 	        let mut data_available = false;
 	        match res{
-	        	Ok(m) => uart_dma_transport.send(m).unwrap(),
+	        	Ok(m) => {
+	        		let mut fifo = Fifo::new();
+	        		for pat in 0..10 {
+	        			fifo.push(65);
+	        		}
+	        		fifo.push(0);
+	        		let fifo_received = uart_dma_transport.send(fifo);
+
+	        	},
 
 	        	_ => {},
 	        }
+
+
+
+	        		// let mut fifo = Fifo::new();
+	        		// for pat in 0..10 {
+	        		// 	fifo.push(65);
+	        		// }
+	        		// fifo.push(10);
+	        		// let fifo_received = uart_dma_transport.send(fifo);
+
+
+
+
+
+
+
+
+
 	        // if(data_available){
 	        // 	uart_dma_transport.send(m)
 	        // }

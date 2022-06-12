@@ -1,6 +1,3 @@
-
-
-
 //! Impl of the UTP platform for the TI TM4C.
 //!
 //! TODO!
@@ -88,9 +85,10 @@ fn main() -> ! {
     let p = hal::Peripherals::take().unwrap();
     let mut sys_control = p.SYSCTL;
     sys_control.rcgcdma.write(|w| unsafe{w.bits(1)});
-    cortex_m::asm::delay(1000);
+    cortex_m::asm::delay(100000);
+    let mut x = 0;
     for pat in 0..1000 {
-        let mut x = 2*i;
+        x = 2*pat;
         x = x+1;
     }
     let mut sc = sys_control.constrain();
@@ -128,7 +126,7 @@ fn main() -> ! {
             .into_af_push_pull::<hal::gpio::AF1>(&mut porta.control),
         (),
         (),
-        1_500_000_u32.bps(),
+        2_000_000_u32.bps(),
         // hal::serial::NewlineMode::SwapLFtoCRLF,
         hal::serial::NewlineMode::Binary,
         &clocks,
@@ -148,7 +146,7 @@ fn main() -> ! {
         &mut RAM_backed_flash_memory_unit, 
         peripheral_set,
         OwnedOrRef::Ref(&FLAGS),
-        [0; 8],
+        [x; 8],
         0x200,
         MachineState::Running,
 
@@ -161,28 +159,31 @@ fn main() -> ! {
     let dec = PostcardDecode::<RequestMessage, Cobs<Fifo<u8>>>::new();
 
     let (mut tx, mut rx) = uart.split();
+    let mut dma_tx = p.UDMA;
+    let mut dma_tx_unit = tm4c_uart_dma_ctrl::new(dma_tx);
+
+    let p = unsafe{hal::Peripherals::steal()}; //need to steal to create a separate TX/RX dma channel inst otherwise would result in dounle mut pointers to dma_unit below.
+                                                        //TODO: Consider having all channels as part of a common type?
+    let mut dma_rx = p.UDMA;
+    let mut dma_rx_unit = tm4c_uart_dma_ctrl::new(dma_rx);
+
+    
+    let mut dma_tx_channel =  tm4c_uart_tx_channel::new(&mut dma_tx_unit);
+    let mut dma_rx_channel = tm4c_uart_rx_channel::new(&mut dma_rx_unit);
+
+    let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_tx_channel, dma_rx_channel);
+
+    let mut device = Device::<UartDmaTransport<_, _, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
+        enc,
+        dec,
+        uart_dma_transport
+    );
 
     // let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
     //     enc,
     //     dec,
     //     UartTransport::new(rx, tx),
     // );
-
-
-    let mut dma = p.UDMA;
-    let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
-   // let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
-
-    // let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
-    //     enc,
-    //     dec,
-    //     uart_dma_transport
-    // );
-    let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
-        enc,
-        dec,
-        UartTransport::new(rx, tx),
-    );
 
     loop { device.step(&mut sim); }
 }

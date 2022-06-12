@@ -75,8 +75,8 @@ use lc3_device_support::{
 use lc3_tm4c::flash::*;
 use lc3_tm4c::{paging::*, memory_trait_RAM_flash::*};
 
-use lc3_tm4c::dma_impl::*;
-use lc3_device_support::rpc::transport::uart_dma::*;
+//use lc3_tm4c::dma_impl::*;
+//use lc3_device_support::rpc::transport::uart_dma::*;
 
 static FLAGS: PeripheralInterruptFlags = PeripheralInterruptFlags::new();
 
@@ -159,21 +159,21 @@ fn main() -> ! {
     let dec = PostcardDecode::<RequestMessage, Cobs<Fifo<u8>>>::new();
 
     let (mut tx, mut rx) = uart.split();
-    let mut dma = p.UDMA;
-    let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
-    let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
+    // let mut dma = p.UDMA;
+    // let mut dma_unit = tm4c_uart_dma_ctrl::new(dma);
+    // let mut uart_dma_transport = UartDmaTransport::new(rx, tx, dma_unit);
 
-    let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
-        enc,
-        dec,
-        uart_dma_transport
-    );
-
-    // let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
+    // let mut device = Device::<UartDmaTransport<_, _, _>, _, RequestMessage, ResponseMessage, _, _>::new(
     //     enc,
     //     dec,
-    //     UartTransport::new(rx, tx),
+    //     uart_dma_transport
     // );
+
+    let mut device = Device::<UartTransport<_, _>, _, RequestMessage, ResponseMessage, _, _>::new(
+        enc,
+        dec,
+        UartTransport::new(rx, tx),
+    );
 
     loop { device.step(&mut sim); }
 }
