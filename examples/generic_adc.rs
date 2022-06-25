@@ -32,12 +32,12 @@ fn main() -> ! {
 
     // let mut porta = p.GPIO_PORTA.split(&sc.power_control);
     // let mut porte = p.GPIO_PORTE.split(&sc.power_control);
-    // let pe3 = porte.pe3.into_analog_input();
-    // let pe2 = porte.pe2.into_analog_input();
-    // let pe1 = porte.pe1.into_analog_input();
-    // let pe0 = porte.pe0.into_analog_input();
-    // let pe5 = porte.pe5.into_analog_input();
-    // let pe4 = porte.pe4.into_analog_input();
+    let pe3 = porte.pe3.into_analog_state();
+    let pe2 = porte.pe2.into_analog_state();
+    let pe1 = porte.pe1.into_analog_state();
+    let pe0 = porte.pe0.into_analog_state();
+    let pe5 = porte.pe5.into_analog_state();
+    let pe4 = porte.pe4.into_analog_state();
    // let adc = adc::components::adc0(p. ADC0, &sc.power_control, (PE3<AnalogFunction>, pe2, pe1, pe0, pe5, pe4));
 
 
@@ -63,45 +63,27 @@ fn main() -> ! {
     use hal::gpio::gpiob::*;
     use tm4c123x_hal::gpio::AnalogFunction;
     use hal::adc::adc0::*;
-    let mut tm4c_adc = hal::adc::Adc::
-    <_, PE3<AnalogFunction>, PE2<AnalogFunction>, PE1<AnalogFunction>, PE0<AnalogFunction>, PB4<AnalogFunction>, 
-    PB5<AnalogFunction>, PE3<AnalogFunction>, PE3<AnalogFunction>, PE3<AnalogFunction>, PE3<AnalogFunction>, PE3<AnalogFunction>, PE3<AnalogFunction>>
-    ::adc0(p.ADC0, (Some(porte.pe3.into_analog_state()), Some(porte.pe2.into_analog_state()), Some(porte.pe1.into_analog_state()), Some(porte.pe0.into_analog_state()), Some(portb.pb4.into_analog_state()), Some(portb.pb5.into_analog_state()), None, None, None, None, None, None), &sc.power_control);
+    let mut tm4c_adc = hal::adc::Adc::adc0(p.ADC0, &sc.power_control);
 
-    let mut utp_adc = generic_adc_unit::new(
-        C0::new(), C1::new(), C2::new(), C3::new(), C4::new(), C5::new(),
-        tm4c_adc.pins.0.unwrap(), tm4c_adc.pins.1.unwrap(), tm4c_adc.pins.2.unwrap(), tm4c_adc.pins.3.unwrap(), tm4c_adc.pins.4.unwrap(), tm4c_adc.pins.5.unwrap());
+     let mut utp_adc = generic_adc_unit::new(tm4c_adc, pe3, pe2, pe1, pe0, pe5, pe4);
    
 
+     utp_adc.set_state(AdcPin::A0, AdcState::Enabled);
+     utp_adc.set_state(AdcPin::A1, AdcState::Enabled);
+     utp_adc.set_state(AdcPin::A2, AdcState::Enabled);
 
 
-    utp_adc.set_state(AdcPin::A0, AdcState::Enabled);
-    let val = utp_adc.read(AdcPin::A0);
 
 
-   // hprintln!("Hello, world!").unwrap();
-
-    // exit QEMU 
-    // NOTE do not run this on hardware; it can corrupt OpenOCD state
-//    let mut counter = 0u32;
-//    loop {
-//        writeln!(uart, "Hello, world! counter={}", counter).unwrap();
-//        counter = counter.wrapping_add(1);
-//    }
-//
-let mut flash_unit = Flash_Unit::<u32>::new(p.FLASH_CTRL);
-let mut arr_dat: [u32; 256] = [0; 256];
-for i in 0..256{
-    arr_dat[i] = ((i as usize)*(2 as usize)) as u32;
-}
-flash_unit.erase_page(0x0000_0000 as usize);
-flash_unit.program_page(0x0000_0000 as usize, &arr_dat);
 loop{
-        let mut arr_buffer: [u32; 256] = flash_unit.read_page(0);
+
+    let val = utp_adc.read(AdcPin::A0);
+    let val2 = utp_adc.read(AdcPin::A1);
+    let val3 = utp_adc.read(AdcPin::A2);
          unsafe{
          for i in 0..256 {
             let addr = 0 + (i*4);
-            writeln!(uart, "{}: [{:#x}] =  {:#x}", addr, addr, arr_buffer[i]);
+            writeln!(uart, "[{:#x}] [{:#x}]  {:#x}", val.unwrap(), val2.unwrap(), val3.unwrap());
         }
    }
 }
