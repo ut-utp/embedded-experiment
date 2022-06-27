@@ -71,6 +71,9 @@ fn main() -> ! {
      utp_adc.set_state(AdcPin::A0, AdcState::Enabled);
      utp_adc.set_state(AdcPin::A1, AdcState::Enabled);
      utp_adc.set_state(AdcPin::A2, AdcState::Enabled);
+     utp_adc.set_state(AdcPin::A3, AdcState::Enabled);
+     utp_adc.set_state(AdcPin::A4, AdcState::Enabled);
+     utp_adc.set_state(AdcPin::A5, AdcState::Enabled);
 
 
 
@@ -80,10 +83,14 @@ loop{
     let val = utp_adc.read(AdcPin::A0);
     let val2 = utp_adc.read(AdcPin::A1);
     let val3 = utp_adc.read(AdcPin::A2);
+    let val4 = utp_adc.read(AdcPin::A3);
+    let val5 = utp_adc.read(AdcPin::A4);
+    let val6 = utp_adc.read(AdcPin::A5);
+
          unsafe{
          for i in 0..256 {
             let addr = 0 + (i*4);
-            writeln!(uart, "[{:#x}] [{:#x}]  {:#x}", val.unwrap(), val2.unwrap(), val3.unwrap());
+            writeln!(uart, "[{:#x}] [{:#x}]  [{:#x}], [{:#x}] [{:#x}]  [{:#x}]", val.unwrap(), val2.unwrap(), val3.unwrap(), val4.unwrap(), val5.unwrap(), val6.unwrap());
         }
    }
 }
